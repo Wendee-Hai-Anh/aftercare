@@ -1,75 +1,110 @@
-# AfterCare — Post-discharge triage (front-end prototype)
+# AfterCare — Hệ thống theo dõi bệnh nhân sau xuất viện
 
-A small multi-page front end for the AfterCare follow-up workflow, plus a
-**separate live metrics dashboard** for whoever monitors product usage.
+AfterCare là phần mềm hỗ trợ bác sĩ và điều dưỡng **theo dõi bệnh nhân sau khi xuất viện**.
+Một trợ lý AI sẽ **gọi điện tự động** cho bệnh nhân theo giao thức của từng bệnh, ghi nhận
+triệu chứng, và **gắn cờ ưu tiên** những ca cần bác sĩ xem ngay. Toàn bộ giao diện dành cho
+nhân viên y tế dùng **tiếng Việt, ngôn ngữ đời thường**, ưu tiên *việc cần làm* hơn là số liệu.
 
-## Run it
+> Đây là bản nguyên mẫu (prototype) chạy hoàn toàn trên trình duyệt. Dữ liệu là dữ liệu mẫu.
+> Ngày "hôm nay" trong bản demo là **16/06/2026**.
 
-Use the bundled static server so the live metrics linking works (it relies on
-a shared site origin):
+---
+
+## Chạy thử
+
+Cần Node.js. Tại thư mục dự án:
 
 ```bash
 node server.js
-# Doctor app:        http://127.0.0.1:5174/
-# Metrics dashboard: http://127.0.0.1:5174/metrics.html
 ```
 
-To see metrics update **live**, open the doctor app and `metrics.html` in two
-tabs and interact with the doctor app — the dashboard ticks within ~2s.
+Mở trình duyệt: `http://127.0.0.1:5174`
+(Có thể đổi cổng: `PORT=8080 node server.js`.)
 
-## Doctor app screens (sidebar)
+Hoặc chỉ cần mở thẳng `index.html` bằng trình duyệt.
 
-| Page                  | File                  |
-|-----------------------|-----------------------|
-| Bệnh nhân đợi theo dõi | `index.html`          |
-| Dữ liệu bệnh nhân      | `patients.html`       |
-| Giao thức và Ngưỡng cờ | `protocols.html`      |
-| Lịch gọi               | `calls.html`          |
-| Cuộc gọi tự động       | `bot-calls.html`      |
-| Lịch hẹn               | `appointments.html`   |
-| Cài đặt                | `settings.html`       |
-| Chi tiết ca            | `case.html`           |
-| Cuộc gọi (mô phỏng)    | `call-incoming.html`  |
+---
 
-**Cuộc gọi tự động** lets a doctor set the date/time for each patient's
-automated call (on/off per patient) and manage the questions the assistant
-asks, grouped by condition (add, remove, turn on/off). Changes are saved in
-the browser under `aftercare_botcalls`.
+## Cấu trúc thư mục
 
-## Metrics dashboard (separate — NOT in the doctor sidebar)
+```
+aftercare/
+├── index.html            # Bảng điều phối (việc cần làm hôm nay)
+├── patients.html         # Danh sách bệnh nhân (tìm kiếm, lọc, xem nhanh)
+├── case.html             # Chi tiết một ca bệnh
+├── call.html             # Màn hình gọi bệnh nhân thủ công
+├── appointments.html     # Lịch hẹn tái khám (ngày/tuần/tháng)
+├── manager.html          # Quản lý gọi AI (5 công cụ)
+├── settings.html         # Cài đặt: hồ sơ, giao diện, hỗ trợ
+├── server.js             # Máy chủ tĩnh đơn giản
+├── images/               # Logo
+├── css/                  # style.css (hệ thống thiết kế) + CSS từng trang
+└── js/                   # data.js (dữ liệu) + app.js (dùng chung) + JS từng trang
+```
 
-`metrics.html` is a standalone analytics surface. It reads the interaction log
-the doctor app writes to the browser and renders, live:
+Thứ tự nạp script ở mỗi trang: **`data.js` → `app.js` → `<trang>.js`**.
 
-- headline counts (total interactions, page views, calls, doctor instructions,
-  bot-call changes),
-- interactions grouped by type,
-- most-viewed pages,
-- a real-time activity feed.
+---
 
-It updates via `BroadcastChannel` + the `storage` event, with a 2-second
-polling fallback. It never loads the doctor app's script, so viewing it does
-not add to the numbers. Metrics are **not shown anywhere in the doctor app.**
+## Các màn hình chính
 
-## Plain language
+### 1. Bảng điều phối (`index.html`)
+Tập trung vào **việc cần xử lý**, không phải thống kê:
+- **Cần bác sĩ xem** — ca được trợ lý nâng cảnh báo.
+- **Cuộc gọi AI hôm nay** — lịch gọi trong ngày.
+- **Cuộc gọi thất bại** — cần gọi lại.
+- **Theo dõi quá hạn** — bệnh nhân trễ lịch.
+- **Lịch hẹn hôm nay**.
 
-Clinical-but-clear wording throughout; engineering jargon was removed
-(e.g. "rule engine" → "Tự động cảnh báo khi gặp dấu hiệu này", "slot" →
-"thông tin thu thập trong cuộc gọi", the call assistant is "Trợ lý").
+Di chuột vào một bệnh nhân để **xem nhanh** (triệu chứng, tóm tắt AI, lời bệnh nhân,
+lần gọi gần nhất, lần gọi kế tiếp).
 
-## Shared layer
+### 2. Bệnh nhân (`patients.html`)
+- Tìm theo **tên / mã hồ sơ**.
+- Lọc theo **chẩn đoán, bác sĩ, mức ưu tiên, trạng thái gọi AI, quá hạn, theo dõi thủ công**.
+- **Sắp xếp**, **chế độ gọn**, chuyển đổi **Danh sách / Thẻ**, và **xem nhanh khi di chuột**.
 
-- `css/style.css` — tokens, sidebar, buttons, cards, pills, badges, tables, toast.
-- `js/data.js` — all content: patients, queue, protocols, calls, appointments,
-  case, bot schedule, question sets, label maps.
-- `js/script.js` — sidebar, responsive menu, `toast()`, `trackGo()`, and the
-  background `Metrics` collector (counts + live event log + broadcast).
+### 3. Chi tiết ca (`case.html`)
+Hiển thị đầy đủ: **độ tin cậy AI, lý do nâng cảnh báo, giao thức khớp, diễn biến gần đây,
+tuân thủ thuốc, các cuộc gọi trước, tóm tắt & bản ghi**, kèm **dòng thời gian theo dõi**.
+Bác sĩ có thể: gọi lại bệnh nhân, lên lịch gọi AI, gán điều dưỡng, đặt lịch khám,
+chuyển chuyên khoa, bỏ qua cảnh báo, đóng ca.
 
-Per-page CSS only where needed: `dashboard.css`, `patients.css`, `case.css`,
-`call.css`, `bot-calls.css`, `metrics.css`.
+### 4. Gọi bệnh nhân (`call.html`)
+Màn hình gọi **thủ công**: số điện thoại bệnh nhân & người nhà, nút **Sao chép** và **Gọi**,
+ô **ghi chú**, chọn **kết quả cuộc gọi** và **Hoàn tất cuộc gọi**.
 
-## Editing tips
+### 5. Quản lý gọi AI (`manager.html`)
+Một module gồm 5 công cụ (chuyển bằng thẻ ở đầu trang):
+- **Lịch gọi AI** — xem theo ngày/tuần/tháng, kéo–thả đổi ngày gọi, danh sách sắp tới,
+  **tạo lịch gọi** theo bệnh nhân/bệnh/giao thức với khoảng lặp 3/7/14 ngày hoặc tùy chỉnh
+  (chọn ngày bắt đầu → tự tính các ngày gọi tiếp theo), cấu hình **giờ làm việc, gọi lại,
+  ngày nghỉ**.
+- **Bộ câu hỏi** — bộ câu hỏi theo bệnh, gán tự động/thủ công, **kéo–thả sắp xếp**,
+  bắt buộc/tùy chọn, bật/tắt câu hỏi, **nhánh điều kiện**, lịch sử phiên bản.
+- **Giao thức & cảnh báo** — thêm/sửa/xóa/nhân bản/bật-tắt quy tắc; đặt điều kiện kích hoạt,
+  mức ưu tiên, người nhận thông báo, tự đặt lịch khám, cần duyệt thủ công.
+- **Hiệu suất AI** — cuộc gọi hoàn thành/thất bại, tỷ lệ chuyển cảnh báo, thời lượng trung bình,
+  số lần can thiệp, phân bố độ tin cậy.
+- **Thông báo** — gọi thất bại, ca được nâng cảnh báo, quá hạn, nhắc lịch hẹn, tin nhắn nhóm.
 
-- Change content → edit `js/data.js`; pages re-render from it.
-- Add a question set for a new condition → add to `CONDITIONS` + `QUESTION_SETS`.
-- Flag/status wording lives once in `FLAG_LABEL` / `STATUS_LABEL`.
+### 6. Lịch hẹn (`appointments.html`)
+Giống lịch Google: **ngày/tuần/tháng**, **thêm/sửa/xóa**, **kéo–thả** đổi ngày,
+**xem nhanh** khi di chuột, **lọc theo bác sĩ / bệnh nhân / bệnh**.
+
+### 7. Cài đặt (`settings.html`)
+- **Đăng nhập (mô phỏng)**, chỉnh **họ tên, chức danh, khoa**. Bấm vào hồ sơ ở thanh bên
+  cũng mở trang này.
+- **Chế độ Sáng / Tối**, **cỡ chữ**, **tỷ lệ giao diện**.
+- **Hỗ trợ tiếp cận**: tương phản cao, giảm chuyển động.
+- **FAQ, Hướng dẫn, Liên hệ AfterCare, Báo lỗi / Góp ý**.
+
+Cài đặt được lưu cục bộ trên trình duyệt (theo sở thích người dùng).
+
+---
+
+## Ghi chú kỹ thuật
+- Không dùng framework — chỉ HTML/CSS/JavaScript thuần, dễ đọc và chỉnh sửa.
+- Bảng màu giữ nhận diện AfterCare: **nền trắng, nhấn xanh lá, nút bo tròn**, có chế độ tối.
+- Một số chỉnh sửa trong "Quản lý gọi AI" và "Lịch hẹn" được giữ trong phiên làm việc
+  (làm mới trang sẽ trở về dữ liệu mẫu) — phù hợp cho bản trình diễn.
